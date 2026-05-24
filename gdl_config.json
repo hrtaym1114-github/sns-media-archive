@@ -1,0 +1,16 @@
+{
+  "extractor": {
+    "sleep-request": [1.0, 2.5],
+    "instagram": {
+      "videos": true,
+      "include": "posts",
+      "filename": "{date:%Y%m%d}_{post_shortcode}_{num}.{extension}",
+      "archive-prefix": "",
+      "archive-format": "{post_shortcode}_{num}"
+    }
+  },
+  "output": {
+    "mode": "terminal",
+    "progress": false
+  }
+}

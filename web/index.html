@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SNS メディアアーカイブ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<div class="glow" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="mark">◐</div>
+    <div class="brand-text">
+      <h1>SNS メディアアーカイブ</h1>
+      <p class="kicker">LOCAL MEDIA VAULT &nbsp;/&nbsp; powered by gallery-dl</p>
+    </div>
+  </div>
+  <form class="add" id="addForm" autocomplete="off">
+    <input id="addInput" type="text" spellcheck="false"
+           placeholder="プロフィールURL を貼り付け（Instagram / X / TikTok / Pinterest / Tumblr / Bluesky）">
+    <button type="submit">＋ アカウント登録</button>
+  </form>
+</header>
+
+<main class="layout">
+  <section class="col-main">
+    <div class="section-head">
+      <h2>登録アカウント</h2>
+      <span class="count-pill mono" id="accountCount">0</span>
+    </div>
+    <div class="accounts" id="accounts"></div>
+    <div class="empty" id="emptyState" hidden>
+      <div class="empty-mark">◍</div>
+      <p>登録アカウントがありません。<br>上の入力欄からアカウントを追加してください。</p>
+    </div>
+  </section>
+
+  <aside class="col-side">
+    <div class="section-head">
+      <h2>アクティビティ</h2>
+    </div>
+    <div class="jobs" id="jobs">
+      <p class="side-empty mono">— 実行中のタスクはありません —</p>
+    </div>
+  </aside>
+</main>
+
+<!-- ギャラリーモーダル -->
+<div class="modal hidden" id="galleryModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h3 id="galleryTitle">@account</h3>
+        <p class="kicker" id="gallerySub">0 件</p>
+      </div>
+      <button class="icon-btn" id="galleryClose">✕</button>
+    </div>
+    <div class="gallery-filters" id="galleryFilters">
+      <button class="chip active" data-filter="all">すべて</button>
+      <button class="chip" data-filter="video">動画</button>
+      <button class="chip" data-filter="image">画像</button>
+    </div>
+    <div class="gallery-grid" id="galleryGrid"></div>
+  </div>
+</div>
+
+<!-- 単体ビューア -->
+<div class="viewer hidden" id="viewer">
+  <button class="icon-btn viewer-close" id="viewerClose">✕</button>
+  <button class="viewer-nav prev" id="viewerPrev" title="前へ（←）">‹</button>
+  <button class="viewer-nav next" id="viewerNext" title="次へ（→）">›</button>
+  <div class="viewer-stage" id="viewerStage"></div>
+  <div class="viewer-counter mono" id="viewerCounter"></div>
+</div>
+
+<!-- 解除/削除 確認 -->
+<div class="modal hidden" id="removeModal">
+  <div class="confirm-card">
+    <h3>アカウントの解除</h3>
+    <p class="confirm-msg" id="removeMsg"></p>
+    <p class="confirm-note">
+      「データ削除」を選ぶと、メディアフォルダはアプリ内の <code>trash/</code>
+      へ移動します（復元可能）。完全に消す場合は <code>trash/</code> を手動で空にしてください。
+    </p>
+    <div class="confirm-actions">
+      <button class="btn danger"   id="removePurge">登録解除 ＋ データ削除</button>
+      <button class="btn ghost"    id="removeUnreg">登録解除のみ（ファイルは残す）</button>
+      <button class="btn subtle"   id="removeCancel">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

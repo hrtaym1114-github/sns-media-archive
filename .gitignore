@@ -1,0 +1,29 @@
+# --- 個人データ（公開しない） ---
+/media/
+/data/
+/trash/
+/downloads/
+/youtuber_seitaiin/
+/logs/
+
+# --- 旧/作業ファイル ---
+/download.log
+/download.py
+/monitor.sh
+/progress.html
+/urls.txt
+/test_h264.mp4
+/test_h264.*
+
+# --- システム / 環境 ---
+.DS_Store
+.claude/
+*.pyc
+__pycache__/
+*.swp
+
+# --- サーバー成果物 ---
+*.log
+nohup.out
+*.part
+*.sqlite
