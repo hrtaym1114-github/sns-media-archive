@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SNS Media Archive — 推しSNSをローカルに丸ごとバックアップ</title>
+<meta name="description" content="Instagram / X / TikTok / Pinterest / Tumblr / Bluesky の動画・画像を一括取得して差分更新するローカルWebアプリ。gallery-dl 製。">
+<meta property="og:title" content="SNS Media Archive">
+<meta property="og:description" content="推しのSNSアカウントを、ローカルに丸ごとバックアップ。差分更新もボタン一つ。">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#14110d; --bg-raise:#1e1813; --bg-card:#221b15; --bg-inset:#15110c;
+  --line:#3a2f24; --line-soft:#2a221a;
+  --ink:#efe6d6; --ink-dim:#b0a48f; --ink-mute:#7c7160;
+  --honey:#e6a23c; --honey-lo:#c98a2c; --coral:#e8623d; --green:#8aa86a;
+  --shadow:0 18px 48px -20px rgba(0,0,0,.85);
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans JP",sans-serif;
+  font-size:15.5px;line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none;}
+
+/* ===== 背景演出 ===== */
+.grain{
+  position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+.glow{
+  position:absolute;top:-260px;left:50%;transform:translateX(-50%);
+  width:1200px;height:720px;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(230,162,60,.20),transparent 65%);
+  filter:blur(20px);
+}
+
+/* ===== 共通 ===== */
+.wrap{max-width:1140px;margin:0 auto;padding:0 28px;position:relative;z-index:1;}
+.kicker{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--honey);
+}
+.section-h{
+  font-family:"Fraunces",serif;font-weight:600;font-size:34px;
+  letter-spacing:.2px;line-height:1.2;margin:14px 0 24px;
+}
+
+/* ===== ナビ ===== */
+nav{
+  position:relative;z-index:5;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:24px 28px;max-width:1140px;margin:0 auto;
+}
+.brand{display:flex;align-items:center;gap:12px;}
+.mark{
+  width:38px;height:38px;border-radius:11px;
+  background:linear-gradient(150deg,var(--honey),var(--coral));
+  display:grid;place-items:center;color:#1c130a;font-size:21px;
+  box-shadow:0 8px 22px -6px rgba(232,98,61,.55);
+  animation:spinmark 18s linear infinite;
+}
+@keyframes spinmark{to{transform:rotate(360deg);}}
+.brand-name{
+  font-family:"Fraunces",serif;font-weight:600;font-size:18px;
+}
+.nav-links{display:flex;gap:24px;align-items:center;}
+.nav-links a{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;
+  color:var(--ink-dim);letter-spacing:.04em;
+  transition:color .15s;
+}
+.nav-links a:hover{color:var(--honey);}
+.nav-cta{
+  background:var(--honey);color:#1c130a;
+  padding:9px 16px;border-radius:9px;font-weight:600;font-size:13px;
+  font-family:"IBM Plex Sans JP",sans-serif;
+  transition:transform .12s,filter .15s;
+}
+.nav-cta:hover{filter:brightness(1.08);transform:translateY(-1px);}
+
+/* ===== ヒーロー ===== */
+.hero{
+  position:relative;padding:90px 0 80px;
+  text-align:center;
+}
+.hero .kicker{margin-bottom:24px;}
+.hero h1{
+  font-family:"Fraunces",serif;font-weight:600;
+  font-size:clamp(40px,6.5vw,76px);
+  line-height:1.08;letter-spacing:-.5px;
+  margin-bottom:26px;
+  animation:fadeup .7s cubic-bezier(.2,.7,.2,1) both;
+}
+.hero h1 em{
+  font-style:normal;
+  background:linear-gradient(120deg,var(--honey),var(--coral));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero p.sub{
+  font-size:17px;color:var(--ink-dim);
+  max-width:660px;margin:0 auto 36px;line-height:1.85;
+  animation:fadeup .8s .12s cubic-bezier(.2,.7,.2,1) both;
+}
+.hero .ctas{
+  display:flex;gap:14px;justify-content:center;flex-wrap:wrap;
+  animation:fadeup .9s .24s cubic-bezier(.2,.7,.2,1) both;
+}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:14px 24px;border-radius:11px;cursor:pointer;
+  font-family:"IBM Plex Sans JP",sans-serif;font-weight:600;font-size:14.5px;
+  border:1px solid transparent;
+  transition:transform .12s,filter .15s,border-color .15s,background .15s;
+}
+.btn-primary{
+  background:linear-gradient(150deg,var(--honey),var(--honey-lo));
+  color:#1c130a;
+  box-shadow:0 12px 30px -10px rgba(230,162,60,.5);
+}
+.btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.btn-ghost{
+  background:var(--bg-inset);border-color:var(--line);color:var(--ink);
+}
+.btn-ghost:hover{border-color:var(--honey);color:var(--honey);}
+@keyframes fadeup{from{opacity:0;transform:translateY(20px);}}
+
+/* ===== 対応SNSバッジ ===== */
+.platforms{
+  display:flex;justify-content:center;gap:10px;flex-wrap:wrap;
+  margin-top:46px;
+  animation:fadeup 1s .36s cubic-bezier(.2,.7,.2,1) both;
+}
+.pf-chip{
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.06em;
+  padding:6px 14px;border-radius:99px;
+  background:var(--bg-card);border:1px solid var(--line-soft);
+  color:var(--ink-dim);
+}
+.pf-chip b{color:var(--honey);font-weight:500;}
+
+/* ===== モック（ブラウザ風プレビュー） ===== */
+.mock-wrap{
+  margin-top:64px;padding:0 0;
+  perspective:1400px;
+  animation:fadeup 1s .48s cubic-bezier(.2,.7,.2,1) both;
+}
+.mock{
+  margin:0 auto;max-width:980px;
+  background:var(--bg-raise);border:1px solid var(--line);
+  border-radius:16px;overflow:hidden;
+  box-shadow:0 50px 110px -30px rgba(0,0,0,.9), 0 0 0 1px rgba(230,162,60,.06);
+  transform:rotateX(2deg);
+}
+.mock-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:11px 14px;background:#191410;border-bottom:1px solid var(--line-soft);
+}
+.mock-dot{width:11px;height:11px;border-radius:50%;background:#3a2f24;}
+.mock-dot:nth-child(1){background:#e8623d;}
+.mock-dot:nth-child(2){background:#e6a23c;}
+.mock-dot:nth-child(3){background:#8aa86a;}
+.mock-url{
+  margin-left:14px;font-family:"IBM Plex Mono",monospace;font-size:11px;
+  color:var(--ink-mute);
+}
+.mock-body{
+  padding:32px 36px;display:grid;grid-template-columns:1fr 1fr;gap:22px;
+  background:linear-gradient(180deg,var(--bg-raise),var(--bg));
+}
+.mock-card{
+  background:linear-gradient(180deg,var(--bg-card),var(--bg-raise));
+  border:1px solid var(--line-soft);border-radius:var(--radius);
+  padding:20px;position:relative;
+}
+.mock-card::before{
+  content:"";position:absolute;inset:0;border-radius:var(--radius);padding:1px;
+  background:linear-gradient(160deg,rgba(230,162,60,.34),transparent 42%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;
+}
+.mock-pill{
+  display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:9px;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--honey);background:var(--bg-inset);border:1px solid var(--line);
+  border-radius:99px;padding:2px 9px;margin-bottom:8px;
+}
+.mock-name{
+  font-family:"Fraunces",serif;font-weight:600;font-size:19px;
+}
+.mock-handle{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-mute);
+}
+.mock-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--line-soft);border:1px solid var(--line-soft);
+  border-radius:11px;overflow:hidden;margin:14px 0;
+}
+.mock-stat{background:var(--bg-inset);padding:11px 12px;}
+.mock-stat .n{
+  font-family:"IBM Plex Mono",monospace;font-weight:600;
+  font-size:22px;line-height:1;
+}
+.mock-stat.v .n{color:var(--honey);}
+.mock-stat .l{
+  font-family:"IBM Plex Mono",monospace;font-size:9px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);
+  margin-top:6px;
+}
+.mock-strip{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:12px;
+}
+.mock-frame{
+  aspect-ratio:1;border-radius:6px;
+  background:linear-gradient(140deg,#2a2014,#3e2e1a 40%,#1a140e);
+  border:1px solid var(--line-soft);
+}
+.mock-actions{display:flex;gap:8px;}
+.mock-btn{
+  flex:1;padding:9px;border-radius:9px;font-size:12px;font-weight:600;
+  font-family:"IBM Plex Sans JP",sans-serif;text-align:center;
+}
+.mock-btn.p{background:linear-gradient(150deg,var(--honey),var(--honey-lo));color:#1c130a;}
+.mock-btn.g{background:var(--bg-inset);border:1px solid var(--line);color:var(--ink);}
+
+/* ===== セクション ===== */
+section{padding:90px 0;position:relative;}
+section.alt{background:linear-gradient(180deg,var(--bg),#100d08);}
+
+.features{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:18px;
+}
+.feat{
+  background:var(--bg-card);border:1px solid var(--line-soft);
+  border-radius:var(--radius);padding:24px;
+  transition:transform .2s,border-color .2s,box-shadow .2s;
+}
+.feat:hover{
+  transform:translateY(-3px);border-color:var(--honey);
+  box-shadow:0 16px 32px -16px rgba(0,0,0,.7);
+}
+.feat .ico{
+  width:42px;height:42px;border-radius:11px;
+  background:var(--bg-inset);border:1px solid var(--line);
+  display:grid;place-items:center;font-size:20px;margin-bottom:14px;
+  color:var(--honey);
+}
+.feat h3{
+  font-family:"Fraunces",serif;font-weight:600;font-size:19px;
+  margin-bottom:7px;
+}
+.feat p{font-size:14px;color:var(--ink-dim);line-height:1.7;}
+
+/* ===== Why ===== */
+.why{
+  display:grid;grid-template-columns:1fr 1.2fr;gap:48px;align-items:center;
+}
+@media(max-width:780px){.why{grid-template-columns:1fr;}}
+.why p{
+  font-size:15.5px;color:var(--ink-dim);
+  line-height:1.95;margin-bottom:14px;
+}
+.why p b{color:var(--ink);font-weight:600;}
+.why-quote{
+  border-left:2px solid var(--honey);
+  padding:14px 0 14px 22px;margin-top:22px;
+  font-family:"Fraunces",serif;font-style:italic;font-size:17px;
+  color:var(--ink);line-height:1.6;
+}
+
+/* ===== クイックスタート ===== */
+.quick{
+  background:var(--bg-inset);border:1px solid var(--line);
+  border-radius:var(--radius);padding:24px 26px;
+  font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.95;
+  color:var(--ink);
+  position:relative;
+  overflow-x:auto;
+  white-space:pre;             /* 改行を保持 */
+  tab-size:4;
+}
+.quick .cmt{color:var(--ink-mute);}
+.quick .pr{color:var(--honey);}
+.quick-grid{
+  display:grid;grid-template-columns:1.4fr 1fr;gap:36px;align-items:start;
+}
+@media(max-width:780px){.quick-grid{grid-template-columns:1fr;}}
+.quick-notes{
+  font-size:13.5px;color:var(--ink-dim);
+  line-height:1.95;
+}
+.quick-notes ul{padding-left:18px;}
+.quick-notes li{margin-bottom:6px;}
+.quick-notes code{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;
+  background:var(--bg-inset);border:1px solid var(--line);
+  padding:1px 6px;border-radius:5px;
+}
+
+/* ===== Footer ===== */
+footer{
+  padding:48px 0 64px;border-top:1px solid var(--line-soft);
+  text-align:center;color:var(--ink-mute);font-size:13px;
+}
+footer .links{
+  display:flex;justify-content:center;gap:22px;margin-bottom:14px;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;
+}
+footer .links a:hover{color:var(--honey);}
+footer .made{font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.12em;text-transform:uppercase;margin-top:4px;}
+
+/* ===== レスポンシブ調整 ===== */
+@media(max-width:680px){
+  .mock-body{grid-template-columns:1fr;}
+  .nav-links a:not(.nav-cta){display:none;}
+  .hero{padding:50px 0 60px;}
+  section{padding:70px 0;}
+}
+</style>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<nav>
+  <a class="brand" href="#top">
+    <div class="mark">◐</div>
+    <div class="brand-name">SNS Media Archive</div>
+  </a>
+  <div class="nav-links">
+    <a href="#features">機能</a>
+    <a href="#why">なぜ作ったか</a>
+    <a href="#quick">使い方</a>
+    <a class="nav-cta" href="https://github.com/hrtaym1114-github/sns-media-archive" target="_blank" rel="noopener">GitHub →</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="top">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="kicker">LOCAL MEDIA VAULT &nbsp;/&nbsp; OPEN SOURCE</div>
+    <h1>推しのSNSアカウントを、<br><em>まるごとローカルに</em>。</h1>
+    <p class="sub">
+      Instagram / X / TikTok / Pinterest / Tumblr / Bluesky の動画・画像を、
+      <b>プロフィールURL1つ</b>で一括バックアップ。<br>
+      次回からは差分だけ。MacのターミナルとChromeさえあれば動く、ローカル完結のWebアプリです。
+    </p>
+    <div class="ctas">
+      <a class="btn btn-primary" href="https://github.com/hrtaym1114-github/sns-media-archive" target="_blank" rel="noopener">
+        ⭐ GitHub で見る
+      </a>
+      <a class="btn btn-ghost" href="#quick">使い方を見る</a>
+    </div>
+
+    <div class="platforms">
+      <span class="pf-chip"><b>◆</b> Instagram</span>
+      <span class="pf-chip"><b>◆</b> X (Twitter)</span>
+      <span class="pf-chip"><b>◆</b> TikTok</span>
+      <span class="pf-chip"><b>◆</b> Pinterest</span>
+      <span class="pf-chip"><b>◆</b> Tumblr</span>
+      <span class="pf-chip"><b>◆</b> Bluesky</span>
+    </div>
+
+    <!-- ブラウザ風モック -->
+    <div class="mock-wrap">
+      <div class="mock">
+        <div class="mock-bar">
+          <div class="mock-dot"></div><div class="mock-dot"></div><div class="mock-dot"></div>
+          <div class="mock-url">127.0.0.1:8780 — SNS メディアアーカイブ</div>
+        </div>
+        <div class="mock-body">
+          <article class="mock-card">
+            <span class="mock-pill">Instagram</span>
+            <div class="mock-name">favorite_creator</div>
+            <div class="mock-handle">instagram.com/favorite_creator</div>
+            <div class="mock-stats">
+              <div class="mock-stat v"><div class="n">412</div><div class="l">Videos</div></div>
+              <div class="mock-stat"><div class="n">87</div><div class="l">Images</div></div>
+              <div class="mock-stat"><div class="n">499</div><div class="l">Total</div></div>
+            </div>
+            <div class="mock-strip">
+              <div class="mock-frame"></div><div class="mock-frame"></div>
+              <div class="mock-frame"></div><div class="mock-frame"></div>
+              <div class="mock-frame"></div>
+            </div>
+            <div class="mock-actions">
+              <div class="mock-btn p">⟳ 更新（差分取得）</div>
+              <div class="mock-btn g">ギャラリー</div>
+            </div>
+          </article>
+          <article class="mock-card">
+            <span class="mock-pill">X (Twitter)</span>
+            <div class="mock-name">photographer</div>
+            <div class="mock-handle">x.com/photographer</div>
+            <div class="mock-stats">
+              <div class="mock-stat v"><div class="n">38</div><div class="l">Videos</div></div>
+              <div class="mock-stat"><div class="n">1,204</div><div class="l">Images</div></div>
+              <div class="mock-stat"><div class="n">1,242</div><div class="l">Total</div></div>
+            </div>
+            <div class="mock-strip">
+              <div class="mock-frame"></div><div class="mock-frame"></div>
+              <div class="mock-frame"></div><div class="mock-frame"></div>
+              <div class="mock-frame"></div>
+            </div>
+            <div class="mock-actions">
+              <div class="mock-btn p">⟳ 更新（前回 +12）</div>
+              <div class="mock-btn g">ギャラリー</div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ FEATURES ============ -->
+<section id="features">
+  <div class="wrap">
+    <div class="kicker">FEATURES</div>
+    <h2 class="section-h">小さく使いやすく、必要な機能だけを丁寧に。</h2>
+    <div class="features">
+      <div class="feat">
+        <div class="ico">🎬</div>
+        <h3>動画＋画像をまとめて</h3>
+        <p>カルーセル投稿も含めて、対応SNSの全メディアを1クリックで一括取得。動画は再生互換性の高い H.264 で保存。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">🔄</div>
+        <h3>差分更新が自然</h3>
+        <p>各アカウントに専用のアーカイブDBを持たせ、2回目以降は新着投稿だけを自動的に取得。重複ダウンロードは発生しません。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">🖼</div>
+        <h3>見たくなるギャラリー</h3>
+        <p>サムネのホバーで拡大ポップ、左右矢印キーで前後切替、動画もブラウザ内で再生・ダウンロード可能。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">🌐</div>
+        <h3>6つのSNSを横断</h3>
+        <p>プロフィールURLを貼り付ければSNSを自動判別。Instagram / X / TikTok / Pinterest / Tumblr / Bluesky に対応。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">🛡</div>
+        <h3>ローカル完結</h3>
+        <p>あなたのMacの中だけで動きます。クラウドへのアップロード一切なし。Chromeのログイン済みCookieを直接利用。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">🗑</div>
+        <h3>削除も復元可能</h3>
+        <p>「データ削除」を選んでも、メディアはアプリ内 trash/ へ退避するだけ。誤操作しても安心して戻せます。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHY ============ -->
+<section class="alt" id="why">
+  <div class="wrap">
+    <div class="why">
+      <div>
+        <div class="kicker">WHY</div>
+        <h2 class="section-h">「消える前に、ちゃんと残したい」<br>から始まった。</h2>
+      </div>
+      <div>
+        <p>
+          お気に入りのSNSアカウントの投稿は、いつまで見られるか分かりません。
+          アカウントの削除、凍結、プラットフォーム自体の変化 ―
+          いつも誰かのサーバーに頼っている <b>"ブックマーク" や "保存済み"</b> は、思っているより脆いものです。
+        </p>
+        <p>
+          このツールは、そんな投稿たちを <b>手元のMacにまるごとアーカイブ</b> するために作りました。
+          毎日少しずつ増えていく投稿は、ボタン1つで差分だけ取得。
+          いつでもオフラインで眺められる、自分だけのライブラリになります。
+        </p>
+        <div class="why-quote">
+          “ いいものをいつでも見返せる安心感を、手元に。 ”
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ QUICK START ============ -->
+<section id="quick">
+  <div class="wrap">
+    <div class="kicker">QUICK START</div>
+    <h2 class="section-h">3コマンドで動きます。</h2>
+    <div class="quick-grid">
+      <div class="quick">
+<span class="cmt"># 必要なツールをインストール（初回のみ）</span>
+<span class="pr">$</span> brew install gallery-dl ffmpeg
+
+<span class="cmt"># リポジトリを取得</span>
+<span class="pr">$</span> git clone https://github.com/hrtaym1114-github/sns-media-archive
+<span class="pr">$</span> cd sns-media-archive
+
+<span class="cmt"># 起動 → ブラウザが自動で開きます</span>
+<span class="pr">$</span> bash start.sh
+      </div>
+      <div class="quick-notes">
+        <p style="color:var(--ink);font-weight:600;font-size:14.5px;margin-bottom:10px;">
+          動作要件
+        </p>
+        <ul>
+          <li>macOS（Linux/Windows は未検証）</li>
+          <li>Python 3.10+</li>
+          <li><code>gallery-dl</code>、<code>ffmpeg</code></li>
+          <li>各SNSにログイン済みの <b>Google Chrome</b></li>
+        </ul>
+        <p style="margin-top:18px;">
+          各SNSはログイン必須化が進んでいます。事前に Chrome で各サイトにログインしておくと、<code>--cookies-from-browser</code> 経由で認証を引き継げます。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/hrtaym1114-github/sns-media-archive" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/hrtaym1114-github/sns-media-archive/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      <a href="https://github.com/mikf/gallery-dl" target="_blank" rel="noopener">Powered by gallery-dl</a>
+    </div>
+    <div>個人的なアーカイブ用途で、各SNSの利用規約・著作権法を遵守してご利用ください。</div>
+    <div class="made">Crafted with care — open source under MIT</div>
+  </div>
+</footer>
+
+</body>
+</html>
